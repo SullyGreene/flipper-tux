@@ -1,34 +1,73 @@
 #!/bin/bash
+#
+# Flipper TUX - Update Script (Interactive)
+# Pulls latest changes from Git, updates dependencies, and handles local changes.
+#
 
-# Flipper TUX Update Script
-# This script pulls the latest version from the main branch and reinstalls dependencies.
+# --- Colors and Emojis ---
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
 
-echo "--- 🐧 Updating Flipper TUX ---"
+echo -e "${CYAN}--- 🐧 Flipper TUX Updater ---${NC}"
+echo -e "${YELLOW}This script will stash any local changes, pull the latest code from the repository, and update dependencies.${NC}\n"
 
-# 1. Pull latest changes from the git repository
-echo "Step 1: Pulling latest changes from GitHub..."
-git pull origin main
+# --- Confirmation ---
+read -p "Are you sure you want to continue? (y/n) [y]: " CONFIRM
+CONFIRM=${CONFIRM:-y}
 
-# Check if the pull was successful
-if [ $? -ne 0 ]; then
-    echo "❌ Error: 'git pull' failed. Please check for local changes, your internet connection, or repository permissions."
+if [[ "$CONFIRM" != "y" && "$CONFIRM" != "Y" ]]; then
+    echo -e "${RED}Update cancelled.${NC}"
+    exit 0
+fi
+
+# --- Check if it's a git repository ---
+if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+    echo -e "\n${RED}❌ Error: This is not a git repository. Cannot update.${NC}"
     exit 1
 fi
 
-echo "✅ Git repository updated successfully."
-echo ""
+echo -e "\n${YELLOW}🔄 Step 1: Handling local changes & fetching updates...${NC}"
 
-# 2. Install/update Node.js dependencies
-echo "Step 2: Installing/updating Node.js dependencies with npm..."
+# Check if there are local changes to stash
+if [[ -n $(git status --porcelain) ]]; then
+    echo "  - Stashing local changes..."
+    git stash
+    STASHED=true
+else
+    echo "  - No local changes to stash."
+    STASHED=false
+fi
+
+# Pull latest changes
+echo "  - Pulling latest code from the repository..."
+git pull
+if [ $? -ne 0 ]; then
+    echo -e "${RED}❌ Error: 'git pull' failed. Please check for network issues or merge conflicts.${NC}"
+    if [ "$STASHED" = true ]; then
+        echo "  - Restoring your stashed changes..."
+        git stash pop # Restore stashed changes on failure
+    fi
+    exit 1
+fi
+
+# Restore stashed changes if any
+if [ "$STASHED" = true ]; then
+    echo "  - Restoring stashed changes..."
+    git stash pop
+fi
+echo -e "${GREEN}✅ Code is up-to-date.${NC}"
+
+
+echo -e "\n${YELLOW}📦 Step 2: Updating Node.js dependencies...${NC}"
 npm install
-
-# Check if npm install was successful
 if [ $? -ne 0 ]; then
-    echo "❌ Error: 'npm install' failed. Please check your internet connection or package.json for errors."
+    echo -e "${RED}❌ Error: 'npm install' failed. Please check the output for errors.${NC}"
     exit 1
 fi
+echo -e "${GREEN}✅ Node.js dependencies are up-to-date.${NC}"
 
-echo "✅ Dependencies are up to date."
-echo ""
+echo -e "\n${GREEN}--- 🎉 Flipper TUX update is complete! ---${NC}"
 
-echo "🎉 Update complete! You can now restart the server with 'npm start' or 'bash start.sh'."
