@@ -6,26 +6,40 @@
 const { exec } = require('child_process');
 
 /**
- * Executes a shell command and sends the result as a standardized JSON response.
- * This function handles logging, success cases, and error cases.
+ * Executes a shell command with a timeout and sends the result as a standardized JSON response.
  *
  * @param {string} command - The shell command to execute.
  * @param {import('express').Response} res - The Express response object.
+ * @param {object} [options={}] - Additional options for execution.
+ * @param {number} [options.timeout=10000] - The timeout in milliseconds (default: 10 seconds).
  */
-const executeCommand = (command, res) => {
-    console.log(`[EXEC] ➡️  Running command: "${command}"`);
+const executeCommand = (command, res, options = {}) => {
+    const { timeout = 10000 } = options; // Default timeout of 10 seconds
+
+    console.log(`[EXEC] ➡️  Running command: "${command}" (Timeout: ${timeout}ms)`);
     
-    exec(command, (error, stdout, stderr) => {
+    const child = exec(command, { timeout }, (error, stdout, stderr) => {
         if (error) {
-            // This block is for when the command itself fails to execute
-            console.error(`[EXEC] ❌ Error executing command: ${error.message}`);
-            res.status(500).json({
-                success: false,
-                command,
-                message: error.message,
-                stdout: stdout.trim(),
-                stderr: stderr.trim()
-            });
+            // This block is for when the command itself fails or times out
+            if (error.signal === 'SIGTERM') {
+                 console.error(`[EXEC] ❌ Command timed out: ${command}`);
+                 res.status(500).json({
+                    success: false,
+                    command,
+                    message: `Command timed out after ${timeout / 1000} seconds.`,
+                    stdout: stdout.trim(),
+                    stderr: stderr.trim()
+                });
+            } else {
+                console.error(`[EXEC] ❌ Error executing command: ${error.message}`);
+                res.status(500).json({
+                    success: false,
+                    command,
+                    message: error.message,
+                    stdout: stdout.trim(),
+                    stderr: stderr.trim()
+                });
+            }
             return;
         }
 
