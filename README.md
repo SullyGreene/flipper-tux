@@ -37,7 +37,7 @@ Flipper TUX runs a Node.js Express server inside Termux on a rooted Android devi
 Clone the repository and start the server inside Termux:
 
 ```bash
-git clone <repository_url>
+git clone https://github.com/SullyGreene/flipper-tux.git
 cd flipper-tux
 bash start.sh
 ```
