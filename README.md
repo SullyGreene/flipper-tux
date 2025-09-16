@@ -47,6 +47,12 @@ bash start.sh
 Find your device IP (for example via `ifconfig`) and open in a browser on the same network:
 
 ```
+# LOCAL
+http://127.0.0.1:3000
+```
+
+```
+# LAN
 http://<your-device-ip>:3000
 ```
 
