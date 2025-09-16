@@ -1,37 +1,68 @@
 #!/bin/bash
+#
+# Flipper TUX - Server Start Script (Interactive)
+# This script checks dependencies and starts the Node.js server with user-defined options.
+#
 
-# Flipper TUX Startup Script
+# --- Colors for output ---
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
 
-echo "--- Starting Flipper TUX ---"
+echo -e "${GREEN}--- Preparing to start Flipper TUX Server ---${NC}"
 
-# Check if Node.js is installed
-if ! command -v node &> /dev/null
-then
-    echo "❌ Node.js not found. Please install it in Termux first:"
-    echo "   pkg install nodejs-lts"
+# --- Check 1: Ensure Node.js is installed ---
+if ! command -v node &> /dev/null; then
+    echo -e "${RED}❌ Error: Node.js is not installed.${NC}"
+    echo -e "${YELLOW}Please run 'pkg install nodejs-lts' or run the setup.sh script.${NC}"
     exit 1
 fi
 
-# Check if Termux:API is accessible
-if ! command -v termux-battery-status &> /dev/null
-then
-    echo "⚠️ Warning: Termux API commands not found."
-    echo "   Please ensure the Termux:API app is installed and you have run 'pkg install termux-api'."
+# --- Check 2: Ensure dependencies are installed ---
+if [ ! -d "node_modules" ]; then
+    echo -e "${YELLOW}⚠️ Warning: 'node_modules' directory not found.${NC}"
+    echo -e "Running 'npm install' automatically..."
+    npm install
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ Error: 'npm install' failed. Please check for errors.${NC}"
+        exit 1
+    fi
 fi
 
-
-# Install Node.js dependencies
-echo "📦 Installing Node.js dependencies..."
-npm install
-
-if [ $? -ne 0 ]; then
-    echo "❌ Failed to install npm dependencies. Please check your connection and try again."
-    exit 1
+# --- Check 3: Ensure 'tux' directory exists ---
+if [ ! -d "tux" ]; then
+    echo -e "${YELLOW}⚠️ Warning: 'tux' module directory not found. Creating it now...${NC}"
+    mkdir tux
 fi
 
-# Start the server
-echo "🚀 Starting the Node.js server..."
-echo "   You can stop the server by pressing Ctrl+C."
-node server.js
+echo -e "\n${CYAN}--- Server Configuration ---${NC}"
 
-echo "--- Flipper TUX has stopped ---"
+# --- CLI Interaction: Port Selection ---
+read -p "Enter the port to run on [3000]: " PORT
+PORT=${PORT:-3000} # Default to 3000 if empty
+
+# --- CLI Interaction: Background Mode ---
+read -p "Run in the background? (y/n) [n]: " RUN_BG
+RUN_BG=${RUN_BG:-n}
+
+# --- Start the server ---
+echo -e "\n${GREEN}✔ All checks passed. Starting server...${NC}"
+clear
+
+# Set the PORT environment variable for the node process
+export PORT
+
+if [[ "$RUN_BG" == "y" || "$RUN_BG" == "Y" ]]; then
+    # Start in background, redirect output to a log file, and save the PID
+    nohup node server.js > flipper-tux.log 2>&1 &
+    echo $! > server.pid
+    echo -e "${GREEN}🚀 Server started in the background on port ${PORT}.${NC}"
+    echo -e "Output is being logged to ${YELLOW}flipper-tux.log${NC}"
+    echo -e "To stop the server, run: ${YELLOW}npm run stop${NC}"
+else
+    # Start in foreground
+    node server.js
+fi
+
