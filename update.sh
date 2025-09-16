@@ -1,57 +1,34 @@
 #!/bin/bash
-#
-# Flipper TUX - Setup Script
-# This script automates the initial setup for new users.
-#
 
-# --- Colors for output ---
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
+# Flipper TUX Update Script
+# This script pulls the latest version from the main branch and reinstalls dependencies.
 
-echo -e "${GREEN}--- 🐧 Starting Flipper TUX Setup ---${NC}"
+echo "--- 🐧 Updating Flipper TUX ---"
 
-# --- Step 1: Update Termux packages ---
-echo -e "\n${YELLOW}Step 1: Updating Termux packages...${NC}"
-pkg update -y && pkg upgrade -y
-echo -e "${GREEN}✅ Termux packages are up to date.${NC}"
+# 1. Pull latest changes from the git repository
+echo "Step 1: Pulling latest changes from GitHub..."
+git pull origin main
 
-# --- Step 2: Install required packages ---
-echo -e "\n${YELLOW}Step 2: Installing core dependencies (git, nodejs-lts, termux-api)...${NC}"
-pkg install -y git nodejs-lts termux-api
-echo -e "${GREEN}✅ Core dependencies installed.${NC}"
-
-# --- Step 3: Check for Termux:API app ---
-echo -e "\n${YELLOW}Step 3: Verifying Termux:API...${NC}"
-if ! command -v termux-battery-status &> /dev/null; then
-    echo -e "\n${RED}❌ Error: Termux:API commands not found.${NC}"
-    echo -e "${YELLOW}Please make sure you have installed the Termux:API app from F-Droid.${NC}"
+# Check if the pull was successful
+if [ $? -ne 0 ]; then
+    echo "❌ Error: 'git pull' failed. Please check for local changes, your internet connection, or repository permissions."
     exit 1
 fi
-echo -e "${GREEN}✅ Termux:API is available.${NC}"
 
-# --- Step 4: Install Node.js dependencies ---
-echo -e "\n${YELLOW}Step 4: Installing Node.js project dependencies...${NC}"
-if [ -f "package.json" ]; then
-    npm install
-    if [ $? -ne 0 ]; then
-        echo -e "${RED}❌ Error: 'npm install' failed. Please check for errors.${NC}"
-        exit 1
-    fi
-else
-    echo -e "${RED}❌ Error: package.json not found! Make sure you are in the project root directory.${NC}"
+echo "✅ Git repository updated successfully."
+echo ""
+
+# 2. Install/update Node.js dependencies
+echo "Step 2: Installing/updating Node.js dependencies with npm..."
+npm install
+
+# Check if npm install was successful
+if [ $? -ne 0 ]; then
+    echo "❌ Error: 'npm install' failed. Please check your internet connection or package.json for errors."
     exit 1
 fi
-echo -e "${GREEN}✅ Node.js dependencies installed.${NC}"
 
-# --- Step 5: Create 'tux' directory for modules ---
-if [ ! -d "tux" ]; then
-    echo -e "\n${YELLOW}Step 5: Creating 'tux' directory for custom modules...${NC}"
-    mkdir tux
-    echo -e "${GREEN}✅ 'tux' directory created.${NC}"
-fi
+echo "✅ Dependencies are up to date."
+echo ""
 
-echo -e "\n${GREEN}### 🎉 Flipper TUX setup is complete! ###${NC}"
-echo -e "You can now start the server by running: ${YELLOW}npm start${NC}"
-
+echo "🎉 Update complete! You can now restart the server with 'npm start' or 'bash start.sh'."
