@@ -1,73 +1,68 @@
 #!/bin/bash
 #
-# Flipper TUX - Update Script (Interactive)
-# Pulls latest changes from Git, updates dependencies, and handles local changes.
+# Flipper TUX - Server Start Script (Interactive)
+# This script checks dependencies and starts the Node.js server with user-defined options.
 #
 
-# --- Colors and Emojis ---
+# --- Colors for output ---
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${CYAN}--- 🐧 Flipper TUX Updater ---${NC}"
-echo -e "${YELLOW}This script will stash any local changes, pull the latest code from the repository, and update dependencies.${NC}\n"
+echo -e "${GREEN}--- Preparing to start 🐧 Flipper TUX Server ---${NC}"
 
-# --- Confirmation ---
-read -p "Are you sure you want to continue? (y/n) [y]: " CONFIRM
-CONFIRM=${CONFIRM:-y}
-
-if [[ "$CONFIRM" != "y" && "$CONFIRM" != "Y" ]]; then
-    echo -e "${RED}Update cancelled.${NC}"
-    exit 0
-fi
-
-# --- Check if it's a git repository ---
-if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-    echo -e "\n${RED}❌ Error: This is not a git repository. Cannot update.${NC}"
+# --- Check 1: Ensure Node.js is installed ---
+if ! command -v node &> /dev/null; then
+    echo -e "${RED}❌ Error: Node.js is not installed.${NC}"
+    echo -e "${YELLOW}Please run 'pkg install nodejs-lts' or run the setup.sh script.${NC}"
     exit 1
 fi
 
-echo -e "\n${YELLOW}🔄 Step 1: Handling local changes & fetching updates...${NC}"
-
-# Check if there are local changes to stash
-if [[ -n $(git status --porcelain) ]]; then
-    echo "  - Stashing local changes..."
-    git stash
-    STASHED=true
-else
-    echo "  - No local changes to stash."
-    STASHED=false
-fi
-
-# Pull latest changes
-echo "  - Pulling latest code from the repository..."
-git pull
-if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ Error: 'git pull' failed. Please check for network issues or merge conflicts.${NC}"
-    if [ "$STASHED" = true ]; then
-        echo "  - Restoring your stashed changes..."
-        git stash pop # Restore stashed changes on failure
+# --- Check 2: Ensure dependencies are installed ---
+if [ ! -d "node_modules" ]; then
+    echo -e "${YELLOW}⚠️ Warning: 'node_modules' directory not found.${NC}"
+    echo -e "Running 'npm install' automatically..."
+    npm install
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ Error: 'npm install' failed. Please check for errors.${NC}"
+        exit 1
     fi
-    exit 1
 fi
 
-# Restore stashed changes if any
-if [ "$STASHED" = true ]; then
-    echo "  - Restoring stashed changes..."
-    git stash pop
+# --- Check 3: Ensure 'tux' directory exists ---
+if [ ! -d "tux" ]; then
+    echo -e "${YELLOW}⚠️ Warning: 'tux' module directory not found. Creating it now...${NC}"
+    mkdir tux
 fi
-echo -e "${GREEN}✅ Code is up-to-date.${NC}"
 
+echo -e "\n${CYAN}--- Server Configuration ---${NC}"
 
-echo -e "\n${YELLOW}📦 Step 2: Updating Node.js dependencies...${NC}"
-npm install
-if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ Error: 'npm install' failed. Please check the output for errors.${NC}"
-    exit 1
+# --- CLI Interaction: Port Selection ---
+read -p "Enter the port to run on [3000]: " PORT
+PORT=${PORT:-3000} # Default to 3000 if empty
+
+# --- CLI Interaction: Background Mode ---
+read -p "Run in the background? (y/n) [n]: " RUN_BG
+RUN_BG=${RUN_BG:-n}
+
+# --- Start the server ---
+echo -e "\n${GREEN}✔ All checks passed. Starting server...${NC}"
+clear
+
+# Set the PORT environment variable for the node process
+export PORT
+
+if [[ "$RUN_BG" == "y" || "$RUN_BG" == "Y" ]]; then
+    # Start in background, redirect output to a log file, and save the PID
+    nohup node server.js > flipper-tux.log 2>&1 &
+    echo $! > server.pid
+    echo -e "${GREEN}🐧 Server started in the background on port ${PORT}.${NC}"
+    echo -e "Output is being logged to ${YELLOW}flipper-tux.log${NC}"
+    echo -e "To stop the server, run: ${YELLOW}npm run stop${NC}"
+else
+    # Start in foreground
+    node server.js
 fi
-echo -e "${GREEN}✅ Node.js dependencies are up-to-date.${NC}"
-
-echo -e "\n${GREEN}--- 🎉 Flipper TUX update is complete! ---${NC}"
 
