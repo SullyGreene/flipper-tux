@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flipper TUX</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐧</text></svg>">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🐧 Flipper TUX</h1>
+            <p>A Web UI for your Rooted Android Device</p>
+        </header>
+
+        <main>
+            <!-- System Log / Output -->
+            <div class="card">
+                <h2>System Log</h2>
+                <pre id="output-log">Welcome! Click a button to begin...</pre>
+            </div>
+
+            <!-- Termux API Controls (Non-Root) -->
+            <div class="card">
+                <h2>Termux API Controls (No Root)</h2>
+                <div class="controls-grid">
+                    <button data-api="/api/termux/battery">Get Battery</button>
+                    <button data-api="/api/termux/vibrate">Vibrate</button>
+                    <button data-api="/api/termux/flashlight/on">Flashlight On</button>
+                    <button data-api="/api/termux/flashlight/off">Flashlight Off</button>
+                </div>
+            </div>
+
+            <!-- Root-Powered Controls -->
+            <div class="card card-danger">
+                <h2>Hardware Controls (Root Required ⚠️)</h2>
+                <div class="controls-grid">
+                    <button data-api="/api/root/wifi/scan">Scan Wi-Fi</button>
+                    <button data-api="/api/root/bluetooth/scan">Scan Bluetooth</button>
+                    <button data-api="/api/root/nfc/enable">Enable NFC</button>
+                    <button data-api="/api/root/nfc/disable">Disable NFC</button>
+                </div>
+                 <small>Warning: These commands require root and can affect your device's state.</small>
+            </div>
+        </main>
+
+        <footer>
+            <p>Flipper TUX Project | Handle with care.</p>
+        </footer>
+    </div>
+    <script src="js/main.js"></script>
+</body>
+</html>
