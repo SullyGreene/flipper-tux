@@ -1,47 +1,57 @@
 #!/bin/bash
-
-# Flipper TUX Setup Script
+#
+# Flipper TUX - Setup Script
 # This script automates the initial setup for new users.
+#
 
-echo "--- 🚀 Starting Flipper TUX Setup ---"
+# --- Colors for output ---
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
 
-# 1. Update Termux packages
-echo "Step 1: Updating Termux packages..."
+echo -e "${GREEN}--- 🚀 Starting Flipper TUX Setup ---${NC}"
+
+# --- Step 1: Update Termux packages ---
+echo -e "\n${YELLOW}Step 1: Updating Termux packages...${NC}"
 pkg update -y && pkg upgrade -y
-echo "✅ Termux packages are up to date."
-echo ""
+echo -e "${GREEN}✅ Termux packages are up to date.${NC}"
 
-# 2. Install required dependencies
-echo "Step 2: Installing core dependencies (git, nodejs, termux-api)..."
-pkg install git nodejs-lts termux-api -y
-echo "✅ Core dependencies installed."
-echo ""
+# --- Step 2: Install required packages ---
+echo -e "\n${YELLOW}Step 2: Installing core dependencies (git, nodejs-lts, termux-api)...${NC}"
+pkg install -y git nodejs-lts termux-api
+echo -e "${GREEN}✅ Core dependencies installed.${NC}"
 
-# 3. Clone the repository if it doesn't exist
-if [ ! -d "flipper-tux" ]; then
-    echo "Step 3: Cloning the Flipper TUX repository..."
-    git clone https://github.com/SullyGreene/flipper-tux.git
-    if [ $? -ne 0 ]; then
-        echo "❌ Error: 'git clone' failed. Please check your internet connection."
-        exit 1
-    fi
-    cd flipper-tux
-else
-    echo "Step 3: Found existing flipper-tux directory. Skipping clone."
-    cd flipper-tux
-fi
-echo "✅ Repository is ready."
-echo ""
-
-# 4. Install Node.js dependencies
-echo "Step 4: Installing Node.js dependencies..."
-npm install
-if [ $? -ne 0 ]; then
-    echo "❌ Error: 'npm install' failed. Please check your internet connection or package.json for errors."
+# --- Step 3: Check for Termux:API app ---
+echo -e "\n${YELLOW}Step 3: Verifying Termux:API...${NC}"
+if ! command -v termux-battery-status &> /dev/null; then
+    echo -e "\n${RED}❌ Error: Termux:API commands not found.${NC}"
+    echo -e "${YELLOW}Please make sure you have installed the Termux:API app from F-Droid.${NC}"
     exit 1
 fi
-echo "✅ Node.js dependencies installed."
-echo ""
+echo -e "${GREEN}✅ Termux:API is available.${NC}"
 
-echo "🎉 Setup complete! You are now in the project directory."
-echo "To start the server, run: bash start.sh"
+# --- Step 4: Install Node.js dependencies ---
+echo -e "\n${YELLOW}Step 4: Installing Node.js project dependencies...${NC}"
+if [ -f "package.json" ]; then
+    npm install
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ Error: 'npm install' failed. Please check for errors.${NC}"
+        exit 1
+    fi
+else
+    echo -e "${RED}❌ Error: package.json not found! Make sure you are in the project root directory.${NC}"
+    exit 1
+fi
+echo -e "${GREEN}✅ Node.js dependencies installed.${NC}"
+
+# --- Step 5: Create 'tux' directory for modules ---
+if [ ! -d "tux" ]; then
+    echo -e "\n${YELLOW}Step 5: Creating 'tux' directory for custom modules...${NC}"
+    mkdir tux
+    echo -e "${GREEN}✅ 'tux' directory created.${NC}"
+fi
+
+echo -e "\n${GREEN}### 🎉 Flipper TUX setup is complete! ###${NC}"
+echo -e "You can now start the server by running: ${YELLOW}npm start${NC}"
+
