@@ -1,0 +1,22 @@
+{
+  "name": "flipper-tux",
+  "version": "0.1.0",
+  "description": "A web UI to control a rooted Android device via Termux.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "android",
+    "termux",
+    "root",
+    "webui",
+    "nodejs"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
