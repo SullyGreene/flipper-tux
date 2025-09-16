@@ -24,12 +24,12 @@
     "hardware",
     "flipper-zero-alternative"
   ],
-  "author": "General",
+  "author": "SullyGreene",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/General/flipper-tux/issues"
+    "url": "https://github.com/SullyGreene/flipper-tux/issues"
   },
-  "homepage": "https://github.com/General/flipper-tux#readme",
+  "homepage": "https://github.com/SullyGreene/flipper-tux#readme",
   "dependencies": {
     "express": "^4.18.2"
   },
