@@ -23,14 +23,12 @@ const readCodes = () => {
     return {}; // Return empty object if file doesn't exist or is invalid
 };
 
-const saveCode = (name, rawCode) => {
-    const codes = readCodes();
-    codes[name] = rawCode;
+const writeCodes = (codes) => {
     try {
         fs.writeFileSync(codesDbPath, JSON.stringify(codes, null, 2));
         return true;
     } catch (err) {
-        console.error("❌ Error saving to ir_codes.json:", err);
+        console.error("❌ Error writing to ir_codes.json:", err);
         return false;
     }
 };
@@ -56,12 +54,16 @@ module.exports = {
         scan: {
             description: 'Starts a 10-second scan to capture a raw IR code from a remote.',
             execute: (req, res, executeCommand) => {
-                // IMPORTANT: '/dev/lirc0' is a GUESS. The path for your IR receiver might be different.
-                // This command attempts to read raw data from the IR receiver device.
                 const command = `
                     echo "🔴 SCANNING: Point your remote at the phone's IR port and press a button.";
                     echo "Waiting for a signal for 10 seconds...";
-                    su -c 'timeout 10 cat /dev/lirc0 | od -An -t u4 | head -n 1'
+                    RAW_CODE=$(su -c 'timeout 10 cat /dev/lirc0 | od -An -t u4 | head -n 1');
+                    if [ -z "$RAW_CODE" ]; then
+                        echo "⚠️ No signal detected within 10 seconds.";
+                    else
+                        echo "✅ Signal captured! Raw Code:";
+                        echo "$RAW_CODE";
+                    fi
                 `;
                 executeCommand(command, res, { timeout: 12000 });
             }
@@ -69,7 +71,7 @@ module.exports = {
         save: {
             description: 'Saves a captured IR code. Params: ?name=my_button_name&code=RAW_CODE',
             execute: (req, res, executeCommand) => {
-                const { name, code } = req.query;
+                let { name, code } = req.query;
 
                 if (!name || !code) {
                     return res.status(400).json({
@@ -77,9 +79,23 @@ module.exports = {
                         message: "Missing 'name' or 'code' query parameter. Both are required."
                     });
                 }
+                
+                // **SECURITY FIX**: Sanitize inputs to prevent command injection and invalid characters.
+                const sanitizedName = name.replace(/[^a-zA-Z0-9_\-]/g, '');
+                const sanitizedCode = code.replace(/[^0-9\s]/g, '').trim();
 
-                if (saveCode(name, code)) {
-                    executeCommand(`echo "✅ Saved button '${name}' successfully!"`, res);
+                if (sanitizedName.length === 0 || sanitizedCode.length === 0) {
+                    return res.status(400).json({
+                        success: false,
+                        message: "Invalid 'name' or 'code' format after sanitization."
+                    });
+                }
+
+                const codes = readCodes();
+                codes[sanitizedName] = sanitizedCode;
+
+                if (writeCodes(codes)) {
+                    executeCommand(`echo "✅ Saved button '${sanitizedName}' successfully!"`, res);
                 } else {
                     res.status(500).json({
                         success: false,
@@ -103,12 +119,36 @@ module.exports = {
                     return res.status(404).json({ success: false, message: `Button '${name}' not found in ir_codes.json.` });
                 }
 
-                // IMPORTANT: '/sys/class/remote/transmit' is a GUESS. Your IR blaster path may differ.
-                // This command writes the raw code to the IR blaster driver.
-                const command = `su -c 'echo "${rawCode}" > /sys/class/remote/transmit'`;
+                // **SECURITY FIX**: Use single quotes inside the shell command to treat the code as a literal string.
+                const command = `su -c "echo '${rawCode}' > /sys/class/remote/transmit"`;
                 
                 const pre_command = `echo "🚀 Transmitting code for '${name}'..."`;
                 executeCommand(`${pre_command} && ${command}`, res);
+            }
+        },
+        delete: {
+            description: 'Deletes a saved IR code. Param: ?name=my_button_name',
+            execute: (req, res, executeCommand) => {
+                const { name } = req.query;
+                if (!name) {
+                    return res.status(400).json({ success: false, message: "Missing 'name' query parameter." });
+                }
+
+                const codes = readCodes();
+                if (!codes[name]) {
+                    return res.status(404).json({ success: false, message: `Button '${name}' not found.` });
+                }
+
+                delete codes[name];
+
+                if (writeCodes(codes)) {
+                    executeCommand(`echo "✅ Deleted button '${name}' successfully!"`, res);
+                } else {
+                    res.status(500).json({
+                        success: false,
+                        message: "Failed to update ir_codes.json on the server."
+                    });
+                }
             }
         }
     }
