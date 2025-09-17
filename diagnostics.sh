@@ -1,40 +1,73 @@
 #!/bin/bash
+# File: flipper-tux/diagnostics.sh
 
 # Flipper TUX Diagnostics Script
-# This script checks if all requirements for the project are met.
+# This script checks if all requirements are met and the environment is set up correctly.
 
-echo "--- 🩺 Running Flipper TUX Diagnostics ---"
+echo "--- 🩺 🐧 Flipper TUX Diagnostics ---"
 echo ""
 
-# --- Check 1: Root Access ---
-echo "1. Checking for Root Access..."
-if su -c "echo 'Success'" > /dev/null 2>&1; then
-    echo "   ✅ Root access confirmed."
+# Function to print success or failure
+check_status() {
+    if [ $? -eq 0 ]; then
+        echo -e "✅ $1: Found"
+    else
+        echo -e "❌ $1: Not Found"
+    fi
+}
+
+# --- 1. System Checks ---
+echo "--- 1. System Dependencies ---"
+command -v su >/dev/null 2>&1
+check_status "Root (su)"
+
+command -v node >/dev/null 2>&1
+check_status "Node.js"
+
+command -v npm >/dev/null 2>&1
+check_status "NPM"
+
+command -v git >/dev/null 2>&1
+check_status "Git"
+
+command -v termux-api >/dev/null 2>&1
+check_status "Termux:API"
+echo ""
+
+# --- 2. Project File Checks ---
+echo "--- 2. Project Files ---"
+[ -f "server.js" ] && echo "✅ server.js: Found" || echo "❌ server.js: Not Found"
+[ -d "node_modules" ] && echo "✅ node_modules/: Found" || echo "❌ node_modules/: Not Found (run setup.sh or npm install)"
+[ -d "public" ] && echo "✅ public/: Found" || echo "❌ public/: Not Found"
+[ -d "tux" ] && echo "✅ tux/: Found" || echo "❌ tux/: Found"
+echo ""
+
+# --- 3. Infrared Hardware Checks (NEW) ---
+echo "--- 3. Infrared Hardware (Best Effort) ---"
+IR_TRANSMIT_PATH="/sys/class/remote/transmit"
+IR_RECEIVE_PATH="/dev/lirc0"
+
+if [ -e "$IR_TRANSMIT_PATH" ]; then
+    if [ -w "$IR_TRANSMIT_PATH" ]; then
+        echo "✅ IR Transmitter: Found and seems writable at $IR_TRANSMIT_PATH"
+    else
+        echo "⚠️ IR Transmitter: Found at $IR_TRANSMIT_PATH but it is NOT writable. 'send' command may fail."
+    fi
 else
-    echo "   ❌ Warning: Root access not detected. Advanced features will not work."
+    echo "❌ IR Transmitter: Not found at default path ($IR_TRANSMIT_PATH). You may need to edit tux/infrared.js."
+fi
+
+if [ -e "$IR_RECEIVE_PATH" ]; then
+     if [ -r "$IR_RECEIVE_PATH" ]; then
+        echo "✅ IR Receiver: Found and seems readable at $IR_RECEIVE_PATH"
+    else
+        echo "⚠️ IR Receiver: Found at $IR_RECEIVE_PATH but it is NOT readable. 'scan' command may fail."
+    fi
+else
+    echo "❌ IR Receiver: Not found at default path ($IR_RECEIVE_PATH). You may need to edit tux/infrared.js."
 fi
 echo ""
 
-# --- Check 2: Core Dependencies ---
-echo "2. Checking for Core Dependencies..."
-command -v node >/dev/null 2>&1 && echo "   ✅ Node.js is installed: $(node -v)" || echo "   ❌ Node.js is NOT installed."
-command -v npm >/dev/null 2>&1 && echo "   ✅ npm is installed: $(npm -v)" || echo "   ❌ npm is NOT installed."
-command -v git >/dev/null 2>&1 && echo "   ✅ git is installed: $(git --version)" || echo "   ❌ git is NOT installed."
-echo ""
 
-# --- Check 3: Termux API ---
-echo "3. Checking Termux:API..."
-if termux-toast -s "Diagnostics Check" > /dev/null 2>&1; then
-    echo "   ✅ Termux:API is responsive."
-else
-    echo "   ❌ Warning: Termux:API is not working. Ensure the app is installed and permissions are granted."
-fi
-echo ""
+echo "--- ✅ Diagnostics Complete ---"
 
-# --- Check 4: Advanced Tools (Root) ---
-echo "4. Checking for Advanced Tools (requires root)..."
-su -c "command -v iw" >/dev/null 2>&1 && echo "   ✅ 'iw' command found (for Wi-Fi)." || echo "   ℹ️ 'iw' command NOT found."
-su -c "command -v bluetoothctl" >/dev/null 2>&1 && echo "   ✅ 'bluetoothctl' command found (for Bluetooth)." || echo "   ℹ️ 'bluetoothctl' command NOT found."
-echo ""
-
-echo "--- Diagnostics Complete ---"
