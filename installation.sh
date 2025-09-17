@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # File: flipper-tux/installation.sh
 
 # Flipper TUX Full Installation & Persistence Script
@@ -9,17 +9,23 @@ echo "--- 🚀 Flipper TUX Full Installation (24/7 Service) ---"
 echo "--- ⚠️ WARNING: ROOT ACCESS IS REQUIRED. ---"
 echo ""
 
+# --- Define Paths for Root Environment ---
+# Termux's environment isn't available to `su`, so we use absolute paths.
+TERMUX_PREFIX="/data/data/com.termux/files/usr"
+NPM_PATH="$TERMUX_PREFIX/bin/npm"
+PM2_PATH="$TERMUX_PREFIX/bin/pm2"
+
 # --- 1. Root Check ---
-if [[ $EUID -ne 0 ]]; then
+if [ "$(id -u)" -ne 0 ]; then
    echo "❌ Error: This script must be run as root."
-   echo "Please run with: su -c 'bash installation.sh'"
+   echo "Please run with: su -c 'sh installation.sh'"
    exit 1
 fi
 echo "✅ Root access confirmed."
 echo ""
 
 # --- 2. System & Node.js Dependencies ---
-echo "---  स्टेप 2: Installing Dependencies ---"
+echo "--- Step 2: Installing Dependencies ---"
 echo "Updating packages..."
 pkg update -y && pkg upgrade -y
 
@@ -27,14 +33,22 @@ echo "Installing git, nodejs, termux-api..."
 pkg install git nodejs-lts termux-api -y
 
 echo "Installing PM2 globally to manage the server process..."
-npm install -g pm2
+$NPM_PATH install -g pm2
+if [ $? -ne 0 ]; then
+    echo "❌ Error: PM2 installation failed. Please check your Node.js/npm setup."
+    exit 1
+fi
 echo "✅ Dependencies installed."
 echo ""
 
 # --- 3. Cloning Repository ---
+# This part runs in the user's directory before switching to root
+# We assume the script is run from within the repo directory or its parent
 if [ -d "flipper-tux" ]; then
-    echo "👍 Found existing flipper-tux directory. Skipping clone."
+    echo "👍 Found existing flipper-tux directory. Entering it."
     cd flipper-tux
+elif [ -f "package.json" ]; then
+    echo "👍 Already inside the flipper-tux directory."
 else
     echo "Cloning the Flipper TUX repository..."
     git clone https://github.com/SullyGreene/flipper-tux.git
@@ -49,7 +63,7 @@ echo ""
 
 # --- 4. Installing Project Dependencies ---
 echo "--- Step 4: Installing Project Dependencies ---"
-npm install
+$NPM_PATH install
 if [ $? -ne 0 ]; then
     echo "❌ Error: 'npm install' failed."
     exit 1
@@ -63,7 +77,6 @@ HOSTS_FILE="/system/etc/hosts"
 URL_ENTRY="127.0.0.1 flipper.tux"
 
 echo "Attempting to modify $HOSTS_FILE..."
-# Remount system as read-write
 mount -o rw,remount /system
 
 if grep -q "flipper.tux" "$HOSTS_FILE"; then
@@ -74,7 +87,6 @@ else
     echo "✅ Custom URL added."
 fi
 
-# Remount system back to read-only
 mount -o ro,remount /system
 echo "✅ Hosts file configured."
 echo ""
@@ -82,13 +94,13 @@ echo ""
 # --- 6. Setting up 24/7 Service with PM2 ---
 echo "--- Step 6: Setting up PM2 for 24/7 Uptime ---"
 echo "Starting the server with PM2..."
-pm2 start server.js --name flipper-tux
+$PM2_PATH start server.js --name flipper-tux
 
 echo "Saving the PM2 process list to resurrect on reboot..."
-pm2 save
+$PM2_PATH save
 
 echo "Generating startup script to run PM2 on boot..."
-pm2 startup
+$PM2_PATH startup
 echo "✅ PM2 service configured."
 echo ""
 
@@ -99,9 +111,10 @@ echo "Flipper TUX is now running as a background service."
 echo "You can access the Web UI from this device at:"
 echo "➡️  http://flipper.tux:3000"
 echo ""
-echo "To manage the service, use these commands:"
-echo "  - pm2 status        (Check if the server is running)"
-echo "  - pm2 logs flipper-tux (View server logs)"
-echo "  - pm2 stop flipper-tux  (Stop the server)"
-echo "  - pm2 restart flipper-tux (Restart the server)"
+echo "To manage the service, use these commands (run as root):"
+echo "  - $PM2_PATH status        (Check if the server is running)"
+echo "  - $PM2_PATH logs flipper-tux (View server logs)"
+echo "  - $PM2_PATH stop flipper-tux  (Stop the server)"
+echo "  - $PM2_PATH restart flipper-tux (Restart the server)"
 echo ""
+
