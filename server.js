@@ -14,8 +14,8 @@ const os = require('os');
 require('dotenv').config();
 
 const app = express();
-// Read port from environment variable set by start.sh, default to 80
-const PORT = process.env.PORT || 80;
+// Read port from environment variable set by start.sh, default to 3691
+const PORT = process.env.PORT || 3691;
 // Read device identity from .env file, with sensible defaults
 const DEVICE_NAME = process.env.DEVICE_NAME || os.hostname();
 const DEVICE_PIN = process.env.DEVICE_PIN || null;
