@@ -1,114 +1,139 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flipper TUX Dashboard</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Custom CSS -->
+    <title>Flipper TUX</title>
     <link rel="stylesheet" href="css/style.css">
-    <!-- Google Fonts: Fira Code for a techy feel -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Favicon -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐧</text></svg>">
 </head>
-<body class="bg-gray-900 text-gray-200 font-mono">
-    <div class="scanlines"></div>
+<body class="bg-gray-900 text-gray-200 font-mono flex items-center justify-center min-h-screen">
 
-    <!-- Header -->
-    <header class="bg-gray-800/80 backdrop-blur-sm p-4 shadow-lg shadow-green-500/10 flex justify-between items-center sticky top-0 z-10">
-        <h1 class="text-2xl font-bold text-green-400 animate-flicker">🐧 FLIPPER TUX</h1>
-        <div id="api-status" class="flex items-center space-x-2">
-            <span class="text-sm">API Status</span>
-            <div class="status-dot animate-pulse bg-yellow-500"></div>
-        </div>
-    </header>
+    <!-- This container holds all views, and JS will toggle them -->
+    <div id="app-container" class="w-full max-w-6xl mx-auto p-4">
 
-    <!-- Main Content -->
-    <main class="p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        <!-- Left Column: Controls -->
-        <div class="lg:col-span-2 flex flex-col gap-6">
-
-            <!-- Device Status -->
-            <section id="device-status-card" class="control-card bg-gray-800/80">
-                 <h2 class="card-title">Device Status</h2>
-                 <div id="status-content" class="grid grid-cols-2 gap-4 text-sm">
-                    <p><strong>Hostname:</strong> <span id="status-hostname">Loading...</span></p>
-                    <p><strong>Battery:</strong> <span id="status-battery">Loading...</span></p>
-                 </div>
-            </section>
-
-            <!-- Termux API Controls (Safe) -->
-            <section class="control-card bg-gray-800/80">
-                <h2 class="card-title">Termux API Controls</h2>
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <button class="btn" data-api="/api/termux/device-info">Device Info</button>
-                    <button class="btn" data-api="/api/termux/battery">Battery</button>
-                    <button class="btn" data-api="/api/termux/vibrate">Vibrate</button>
-                    <button class="btn" data-api="/api/termux/contact-list">Contacts</button>
-                    <button class="btn" data-api="/api/termux/call-log">Call Log</button>
-                    <button class="btn" data-api="/api/termux/location">Location</button>
-                    <button class="btn" data-api="/api/termux/flashlight/on">Flashlight On</button>
-                    <button class="btn" data-api="/api/termux/flashlight/off">Flashlight Off</button>
+        <!-- ====================================================== -->
+        <!-- View 1: Device Discovery / Landing Page                -->
+        <!-- ====================================================== -->
+        <section id="discovery-view" class="w-full">
+            <header class="text-center mb-8">
+                <h1 class="text-4xl font-bold text-cyan-400 mb-2">🐧 Flipper TUX</h1>
+                <p class="text-gray-400">Select a device to connect.</p>
+            </header>
+            <div id="device-list-container" class="control-card bg-gray-800/80">
+                <h2 class="card-title">Available Devices</h2>
+                <div id="device-list" class="space-y-3">
+                    <!-- Devices will be dynamically inserted here -->
+                    <p id="discovery-status" class="text-center text-gray-500 py-4">Scanning your local network for devices...</p>
                 </div>
-            </section>
-
-            <!-- Dynamically Loaded TUX Modules -->
-            <div id="dynamic-modules-container" class="flex flex-col gap-6"></div>
-
-            <!-- Root Controls (Warning) -->
-            <section class="control-card bg-gray-800/80 border-yellow-500/50 border">
-                <h2 class="card-title text-yellow-400">Hardware Controls <span class="text-xs text-yellow-600">(Root Required)</span></h2>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <button class="btn btn-warning" data-api="/api/root/wifi/scan">Scan Wi-Fi</button>
-                    <button class="btn btn-warning" data-api="/api/root/wifi/enable">Wi-Fi On</button>
-                    <button class="btn btn-warning" data-api="/api/root/wifi/disable">Wi-Fi Off</button>
-                    <button class="btn btn-warning" data-api="/api/root/bluetooth/scan">Scan Bluetooth</button>
-                    <button class="btn btn-warning" data-api="/api/root/nfc/enable">NFC On</button>
-                    <button class="btn btn-warning" data-api="/api/root/nfc/disable">NFC Off</button>
-                </div>
-            </section>
-
-             <!-- System Power Controls (Dangerous) -->
-            <section class="control-card bg-gray-800/80 border-red-500/50 border">
-                <h2 class="card-title text-red-400">System Power <span class="text-xs text-red-600">(DANGEROUS)</span></h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <button class="btn btn-danger" data-api="/api/root/reboot" data-method="POST" data-confirm="Are you sure you want to REBOOT the device?">Reboot Device</button>
-                </div>
-            </section>
-
-        </div>
-
-        <!-- Right Column: Log Output -->
-        <div class="lg:col-span-1">
-            <div class="log-card bg-gray-900/50 h-[60vh] lg:h-full sticky top-24">
-                <div class="log-header bg-gray-800/80 backdrop-blur-sm">
-                    <h3 class="text-lg font-semibold">Command Output Log</h3>
-                    <button id="clear-log-btn" class="text-sm text-gray-400 hover:text-white transition-colors">Clear</button>
-                </div>
-                <pre id="log-output" class="p-4 overflow-y-auto h-full text-xs">Welcome! Flipper TUX UI Initialized.</pre>
             </div>
-        </div>
+        </section>
 
-    </main>
-    
-    <!-- Custom Modal for Confirmations -->
-    <div id="confirmation-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
-        <div class="bg-gray-800/90 backdrop-blur-sm rounded-lg shadow-xl p-6 w-11/12 max-w-md text-center border border-gray-700">
-            <p id="modal-text" class="mb-6 text-lg">Are you sure?</p>
+        <!-- ====================================================== -->
+        <!-- View 2: PIN Authentication Modal                       -->
+        <!-- ====================================================== -->
+        <section id="pin-view" class="hidden w-full max-w-sm mx-auto">
+             <div class="control-card bg-gray-800/80">
+                <h2 class="card-title text-center">Enter PIN for <span id="pin-device-name" class="text-cyan-400"></span></h2>
+                <div class="flex justify-center gap-2 my-4">
+                    <input type="password" maxlength="1" class="pin-input">
+                    <input type="password" maxlength="1" class="pin-input">
+                    <input type="password" maxlength="1" class="pin-input">
+                    <input type="password" maxlength="1" class="pin-input">
+                </div>
+                <p id="pin-error" class="text-red-500 text-center h-4"></p>
+                <div class="flex justify-between mt-4">
+                    <button id="pin-cancel-btn" class="btn btn-secondary">Back</button>
+                    <button id="pin-submit-btn" class="btn btn-primary">Connect</button>
+                </div>
+            </div>
+        </section>
+        
+        <!-- ====================================================== -->
+        <!-- View 3: Main Control Panel                             -->
+        <!-- ====================================================== -->
+        <main id="control-panel-view" class="hidden w-full">
+            <header class="flex justify-between items-center mb-6">
+                <div>
+                    <h1 class="text-3xl font-bold text-cyan-400">🐧 Flipper TUX</h1>
+                    <p id="connected-device-name" class="text-gray-400">Connected to: Loading...</p>
+                </div>
+                <button id="disconnect-btn" class="btn btn-secondary">Disconnect</button>
+            </header>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left Column: Logs -->
+                <div class="lg:col-span-1 space-y-6">
+                    <section id="api-status" class="control-card">
+                        <h2 class="card-title">Status</h2>
+                        <div class="flex items-center justify-between">
+                            <span>API Connection</span>
+                            <span class="status-dot bg-yellow-500"></span>
+                        </div>
+                    </section>
+                     <section class="control-card">
+                        <div class="flex justify-between items-center">
+                            <h2 class="card-title">System Log</h2>
+                            <button id="clear-log-btn" class="text-xs text-gray-500 hover:text-cyan-400">Clear</button>
+                        </div>
+                        <pre id="log-output" class="log-box"></pre>
+                    </section>
+                </div>
+
+                <!-- Right Column: Controls -->
+                <div class="lg:col-span-2 space-y-6">
+                    <section class="control-card">
+                        <h2 class="card-title">Device Status</h2>
+                        <div class="grid grid-cols-2 gap-2 text-sm">
+                            <span class="font-bold">Hostname:</span><span id="status-hostname">Loading...</span>
+                            <span class="font-bold">Battery:</span><span id="status-battery">Loading...</span>
+                        </div>
+                    </section>
+
+                    <section class="control-card">
+                        <h2 class="card-title">Termux API</h2>
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            <button class="btn btn-primary" data-api="/api/termux/battery">Get Battery</button>
+                            <button class="btn btn-primary" data-api="/api/termux/vibrate">Vibrate</button>
+                            <button class="btn btn-primary" data-api="/api/termux/flashlight/on">Flashlight On</button>
+                            <button class="btn btn-primary" data-api="/api/termux/flashlight/off">Flashlight Off</button>
+                        </div>
+                    </section>
+
+                    <section class="control-card bg-gray-800/80 border-red-500/50 border">
+                        <h2 class="card-title text-red-400">Root Controls ⚠️</h2>
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            <button class="btn btn-danger" data-api="/api/root/wifi/scan">Scan Wi-Fi</button>
+                            <button class="btn btn-danger" data-api="/api/root/bluetooth/scan">Scan Bluetooth</button>
+                            <button class="btn btn-danger" data-api="/api/root/wifi/enable">Enable Wi-Fi</button>
+                            <button class="btn btn-danger" data-api="/api/root/wifi/disable">Disable Wi-Fi</button>
+                            <button class="btn btn-danger" data-api="/api/root/nfc/enable">Enable NFC</button>
+                            <button class="btn btn-danger" data-api="/api/root/nfc/disable">Disable NFC</button>
+                            <button class="btn btn-danger" data-api="/api/root/reboot" data-method="POST" data-confirm="Are you sure you want to reboot the device?">Reboot</button>
+                            <button class="btn btn-danger" data-api="/api/root/shutdown" data-method="POST" data-confirm="Are you sure you want to shut down the device?">Shutdown</button>
+                        </div>
+                    </section>
+
+                    <div id="dynamic-modules-container">
+                        <!-- Custom TUX Modules will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+
+    </div>
+
+    <!-- Confirmation Modal (used by Control Panel) -->
+    <div id="confirmation-modal" class="fixed inset-0 bg-black/70 flex items-center justify-center hidden">
+        <div class="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700 max-w-sm text-center">
+            <p id="modal-text" class="mb-6">Are you sure?</p>
             <div class="flex justify-center gap-4">
-                <button id="modal-cancel" class="btn bg-gray-600 hover:bg-gray-500">Cancel</button>
+                <button id="modal-cancel" class="btn btn-secondary">Cancel</button>
                 <button id="modal-confirm" class="btn btn-danger">Confirm</button>
             </div>
         </div>
     </div>
-
-
-    <!-- Frontend Logic -->
+    
     <script src="js/main.js"></script>
 </body>
 </html>
