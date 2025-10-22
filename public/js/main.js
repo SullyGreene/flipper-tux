@@ -62,20 +62,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const discoverDevices = async () => {
         // This is a simplified discovery for common home networks (192.168.1.x)
         // A more robust solution might use UDP broadcasts or mDNS.
-        const subnet = "192.168.1."; // You might need to change this based on your network
+        const commonSubnets = [
+            "192.168.1.", // Common for many routers
+            "192.168.0.", // Also common
+            "10.0.0.",    // Common for some ISPs (e.g., Xfinity)
+            "172.16.0."   // Less common, but part of private IP ranges
+        ];
         const promises = [];
+        const discoveryPort = 3691; // Standardized port for Flipper TUX
         
         log('Scanning for devices on your local network...', 'info');
         discoveryStatus.textContent = 'Scanning... This may take a moment.';
 
-        for (let i = 1; i < 255; i++) {
-            const ip = subnet + i;
-            const promise = fetch(`http://${ip}:3691/api/discover`, { signal: AbortSignal.timeout(1000) })
-                .then(response => response.ok ? response.json() : Promise.reject())
-                .then(data => ({ name: data.deviceName, ip }))
-                .catch(() => null);
-            promises.push(promise);
-        }
+        commonSubnets.forEach(subnet => {
+            for (let i = 1; i < 255; i++) {
+                const ip = subnet + i;
+                const promise = fetch(`http://${ip}:${discoveryPort}/api/discover`, { signal: AbortSignal.timeout(1000) })
+                    .then(response => response.ok ? response.json() : Promise.reject())
+                    .then(data => ({ name: data.deviceName, ip }))
+                    .catch(() => null);
+                promises.push(promise);
+            }
+        });
 
         const results = await Promise.all(promises);
         appState.discoveredDevices = results.filter(Boolean);
@@ -149,7 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (button) button.classList.add('loading');
         
         const { ip } = appState.connectedDevice;
-        const headers = { 'X-Device-PIN': appState.devicePin };
+        const headers = { 'X-Device-PIN': appState.devicePin }; // Ensure this is correctly passed
         const options = { method, headers };
 
         if (body) {
@@ -157,8 +165,8 @@ document.addEventListener('DOMContentLoaded', () => {
             options.body = JSON.stringify(body);
         }
         
-        try {
-            const response = await fetch(`http://${ip}:3691${endpoint}`, options);
+        try { // Use the hardcoded discoveryPort for API calls
+            const response = await fetch(`http://${ip}:3000${endpoint}`, options);
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || `HTTP error! Status: ${response.status}`);
 
@@ -297,4 +305,3 @@ document.addEventListener('DOMContentLoaded', () => {
 
     checkSession();
 });
-

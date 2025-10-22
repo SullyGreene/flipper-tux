@@ -27,10 +27,20 @@ echo ""
 # --- 2. System & Node.js Dependencies ---
 echo "--- Step 2: Installing Dependencies ---"
 echo "Updating packages..."
-pkg update -y && pkg upgrade -y
+if ! pkg update -y; then
+    echo "❌ Error: 'pkg update' failed. Please check your internet connection and Termux repositories."
+    exit 1
+fi
+if ! pkg upgrade -y; then
+    echo "❌ Error: 'pkg upgrade' failed. Please check your internet connection and Termux repositories."
+    exit 1
+fi
 
 echo "Installing git, nodejs, termux-api, and tsu..."
-pkg install git nodejs-lts termux-api tsu -y
+if ! pkg install git nodejs-lts termux-api tsu -y; then
+    echo "❌ Error: Failed to install core dependencies (git, nodejs-lts, termux-api, tsu). Please ensure Termux repositories are accessible."
+    exit 1
+fi
 
 echo "Installing PM2 globally to manage the server process..."
 $NPM_PATH install -g pm2
@@ -154,4 +164,3 @@ echo "  - $PM2_PATH logs flipper-tux (View server logs)"
 echo "  - $PM2_PATH stop flipper-tux  (Stop the server)"
 echo "  - $PM2_PATH restart flipper-tux (Restart the server)"
 echo ""
-

@@ -20,18 +20,26 @@ const PORT = process.env.PORT || 3691;
 const DEVICE_NAME = process.env.DEVICE_NAME || os.hostname();
 const DEVICE_PIN = process.env.DEVICE_PIN || null;
 
-console.log(`[INIT] Starting server for device: '${DEVICE_NAME}' on port ${PORT}...`);
+// --- Audit Logger ---
+const auditLogStream = fs.createWriteStream(path.join(__dirname, 'audit.log'), { flags: 'a' });
+const logAuditEvent = (level, message) => {
+    const timestamp = new Date().toISOString();
+    const logMessage = `[${timestamp}] [${level.toUpperCase()}] ${message}\n`;
+    console.log(logMessage.trim()); // Also log to console
+    auditLogStream.write(logMessage);
+};
+
+logAuditEvent('info', `Server starting for device '${DEVICE_NAME}' on port ${PORT}...`);
 
 if (!DEVICE_PIN) {
-    console.warn("\n--- ⚠️ SECURITY WARNING ---");
-    console.warn("No DEVICE_PIN found in the .env file.");
-    console.warn("The API is currently UNPROTECTED and accessible to anyone on your network.");
-    console.warn("Please run the installation script to set a PIN.\n");
+    const warning = "No DEVICE_PIN found in .env. API is UNPROTECTED. Run installation.sh to set a PIN.";
+    logAuditEvent('warn', `--- SECURITY WARNING --- ${warning}`);
 }
 
 // --- Middleware ---
 app.use(express.json()); // Middleware to parse JSON bodies
 app.use(express.static(path.join(__dirname, 'public'))); // Serve static files (HTML, CSS, JS)
+app.set('trust proxy', true); // Required to get the real IP address if behind a proxy
 
 // --- Authentication Middleware ---
 // This checks for the correct PIN on all protected API routes.
@@ -47,10 +55,20 @@ const authMiddleware = (req, res, next) => {
     }
     
     // If PIN is incorrect or missing, deny access.
-    console.warn(`[AUTH] ❌ Denied access to ${req.path}. Incorrect or missing PIN.`);
+    logAuditEvent('warn', `[AUTH] Denied access for IP ${req.ip} to ${req.method} ${req.originalUrl}. Reason: Incorrect or missing PIN.`);
     res.status(401).json({ error: 'Authentication required. Provide a valid PIN in the X-Device-PIN header.' });
 };
 
+// --- Request Logging Middleware ---
+// This logs all authenticated API requests.
+const requestLogger = (req, res, next) => {
+    // This middleware will be placed after auth, so we only log authenticated requests.
+    res.on('finish', () => {
+        // We log on 'finish' to include the status code.
+        logAuditEvent('info', `[API] ${req.ip} - "${req.method} ${req.originalUrl}" ${res.statusCode}`);
+    });
+    next();
+};
 
 // --- API Routers ---
 const termuxRouter = require('./routes/termux');
@@ -58,17 +76,17 @@ const rootRouter = require('./routes/root');
 const moduleRouter = require('./routes/modules');
 
 // Apply the authentication middleware to all routes that control the device
-app.use('/api/termux', authMiddleware, termuxRouter);
-app.use('/api/root', authMiddleware, rootRouter);
-app.use('/api/modules', authMiddleware, moduleRouter);
-console.log('[INIT] API routers mounted with authentication.');
+app.use('/api/termux', authMiddleware, requestLogger, termuxRouter);
+app.use('/api/root', authMiddleware, requestLogger, rootRouter);
+app.use('/api/modules', authMiddleware, requestLogger, moduleRouter);
+logAuditEvent('info', 'API routers mounted with authentication and logging.');
 
 
 // --- Dynamic Module Loading ---
 const modulesDir = path.join(__dirname, 'tux');
 if (fs.existsSync(modulesDir)) {
     const moduleFiles = fs.readdirSync(modulesDir).filter(file => file.endsWith('.js'));
-    console.log(`[INIT] Found ${moduleFiles.length} custom TUX module(s).`);
+    logAuditEvent('info', `Found ${moduleFiles.length} custom TUX module(s).`);
 
     moduleFiles.forEach(file => {
         try {
@@ -77,18 +95,18 @@ if (fs.existsSync(modulesDir)) {
             const moduleName = path.basename(file, '.js');
             
             if (module && module.router && module.name) {
-                // The module's router is already mounted under auth, so it's protected.
+                // The module's router is mounted under the main auth/logger chain.
                 moduleRouter.use(`/${moduleName}`, module.router);
-                console.log(`  - ✅ Loaded module '${module.name}' at /api/modules/${moduleName}`);
+                logAuditEvent('info', `Loaded module '${module.name}' at /api/modules/${moduleName}`);
             } else {
-                console.warn(`  - ⚠️  Skipping invalid module file (missing name or router): ${file}`);
+                logAuditEvent('warn', `Skipping invalid module file (missing name or router): ${file}`);
             }
         } catch (error) {
-            console.error(`  - ❌ Error loading module ${file}:`, error.message);
+            logAuditEvent('error', `Error loading module ${file}: ${error.message}`);
         }
     });
 } else {
-    console.log('[INIT] No "tux" directory found, skipping custom module loading.');
+    logAuditEvent('info', 'No "tux" directory found, skipping custom module loading.');
 }
 
 
@@ -109,7 +127,7 @@ app.get('/api/test', (req, res) => {
 });
 
 // Protected endpoint to get detailed server and module info for an authenticated UI.
-app.get('/api/server-info', authMiddleware, (req, res) => {
+app.get('/api/server-info', authMiddleware, requestLogger, (req, res) => {
     const loadedModules = [];
     if (fs.existsSync(modulesDir)) {
         fs.readdirSync(modulesDir).filter(file => file.endsWith('.js')).forEach(file => {
@@ -146,26 +164,25 @@ app.get('/api/server-info', authMiddleware, (req, res) => {
 
 // --- Server Startup ---
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n--- 🐧 Flipper TUX Server is live! ---`);
-    console.log(`Device Name: ${DEVICE_NAME}`);
-    console.log(`Access the UI from any device on your local network.`);
+    logAuditEvent('info', '--- Flipper TUX Server is live! ---');
+    logAuditEvent('info', `Device Name: ${DEVICE_NAME}`);
+    logAuditEvent('info', `Access the UI from any device on your local network.`);
     
     const networkInterfaces = os.networkInterfaces();
     const displayPort = PORT == 80 || PORT == 443 ? '' : `:${PORT}`;
 
-    console.log('\n--- Network Access ---');
+    logAuditEvent('info', '--- Network Access ---');
     Object.keys(networkInterfaces).forEach(ifaceName => {
         const addresses = networkInterfaces[ifaceName];
         if (addresses) {
             addresses.forEach(iface => {
                 if (iface.family === 'IPv4' && !iface.internal) {
-                    console.log(`  - ${ifaceName}: http://${iface.address}${displayPort}`);
+                    logAuditEvent('info', `  - ${ifaceName}: http://${iface.address}${displayPort}`);
                 }
             });
         }
     });
-    console.log(`  - Localhost: http://127.0.0.1${displayPort}`);
-    console.log(`  - Custom URL: http://flipper.tux${displayPort}`);
-    console.log('-------------------------------------\n');
+    logAuditEvent('info', `  - Localhost: http://127.0.0.1${displayPort}`);
+    logAuditEvent('info', `  - Custom URL: http://flipper.tux${displayPort}`);
+    logAuditEvent('info', '-------------------------------------');
 });
-

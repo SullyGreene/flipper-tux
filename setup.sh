@@ -14,12 +14,22 @@ echo -e "${GREEN}--- 🚀 Starting Flipper TUX Setup ---${NC}"
 
 # --- Step 1: Update Termux packages ---
 echo -e "\n${YELLOW}Step 1: Updating Termux packages...${NC}"
-pkg update -y && pkg upgrade -y
+if ! pkg update -y; then
+    echo -e "${RED}❌ Error: 'pkg update' failed. Please check your internet connection and Termux repositories.${NC}"
+    exit 1
+fi
+if ! pkg upgrade -y; then
+    echo -e "${RED}❌ Error: 'pkg upgrade' failed. Please check your internet connection and Termux repositories.${NC}"
+    exit 1
+fi
 echo -e "${GREEN}✅ Termux packages are up to date.${NC}"
 
 # --- Step 2: Install required packages ---
 echo -e "\n${YELLOW}Step 2: Installing core dependencies (git, nodejs-lts, termux-api)...${NC}"
-pkg install -y git nodejs-lts termux-api
+if ! pkg install -y git nodejs-lts termux-api; then
+    echo -e "${RED}❌ Error: Failed to install core dependencies. Please ensure Termux repositories are accessible.${NC}"
+    exit 1
+fi
 echo -e "${GREEN}✅ Core dependencies installed.${NC}"
 
 # --- Step 3: Check for Termux:API app ---
@@ -54,4 +64,3 @@ fi
 
 echo -e "\n${GREEN}### 🎉 Flipper TUX setup is complete! ###${NC}"
 echo -e "You can now start the server by running: ${YELLOW}npm start${NC}"
-
