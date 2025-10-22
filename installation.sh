@@ -104,6 +104,41 @@ while true; do
     fi
 done
 
+# --- New: HOST Binding Configuration (P3) ---
+echo ""
+echo "--- Step 5.1: Network Binding Configuration ---"
+echo "By default, the server binds to '127.0.0.1' (localhost) for security."
+echo "This means it's only accessible from the device itself."
+echo "Do you want to bind to '0.0.0.0' (all network interfaces) to allow access from other devices on your network?"
+read -p "Bind to all interfaces? (y/n) [n]: " BIND_ALL_INTERFACES_CHOICE
+BIND_ALL_INTERFACES_CHOICE=${BIND_ALL_INTERFACES_CHOICE:-n}
+
+SERVER_HOST="127.0.0.1"
+if [ "$BIND_ALL_INTERFACES_CHOICE" = "y" ] || [ "$BIND_ALL_INTERFACES_CHOICE" = "Y" ]; then
+    SERVER_HOST="0.0.0.0"
+    echo "Server will bind to 0.0.0.0, accessible from your network."
+else
+    echo "Server will bind to 127.0.0.1 (localhost) for maximum security."
+fi
+echo "✅ Network binding configured."
+
+# --- New: Read-Only Mode Configuration (P3) ---
+echo ""
+echo "--- Step 5.2: Read-Only Mode Configuration ---"
+echo "Do you want to start the server in read-only mode?"
+echo "In read-only mode, all state-changing API requests (POST, PUT, DELETE, PATCH) and /api/root/* routes are blocked."
+read -p "Enable read-only mode? (y/n) [n]: " ENABLE_READONLY_CHOICE
+ENABLE_READONLY_CHOICE=${ENABLE_READONLY_CHOICE:-n}
+
+READONLY_FLAG=""
+if [ "$ENABLE_READONLY_CHOICE" = "y" ] || [ "$ENABLE_READONLY_CHOICE" = "Y" ]; then
+    READONLY_FLAG="--readonly"
+    echo "Read-only mode will be enabled."
+else
+    echo "Read-only mode will be disabled."
+fi
+echo "✅ Read-only mode configured."
+
 # Create .env file
 echo "Creating configuration file (.env)..."
 cat > .env << EOL
@@ -111,6 +146,7 @@ cat > .env << EOL
 # This file stores the unique identity for this device.
 DEVICE_NAME="${DEVICE_NAME}"
 DEVICE_PIN="${DEVICE_PIN}"
+HOST="${SERVER_HOST}" # P3: Default Server to Localhost Binding
 EOL
 echo "✅ Device name and PIN saved to .env file."
 echo ""
@@ -138,7 +174,8 @@ echo ""
 # --- 7. Setting up 24/7 Service with PM2 ---
 echo "--- Step 7: Setting up PM2 for 24/7 Uptime ---"
 echo "Starting the server with PM2..."
-$PM2_PATH start server.js --name flipper-tux
+# Pass the --readonly flag to the node process if enabled
+$PM2_PATH start server.js --name flipper-tux -- $READONLY_FLAG
 
 echo "Saving the PM2 process list to resurrect on reboot..."
 $PM2_PATH save
