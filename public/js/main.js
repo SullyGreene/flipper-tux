@@ -166,7 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         try { // Use the hardcoded discoveryPort for API calls
-            const response = await fetch(`http://${ip}:3000${endpoint}`, options);
+            const response = await fetch(`http://${ip}:3691${endpoint}`, options);
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || `HTTP error! Status: ${response.status}`);
 
