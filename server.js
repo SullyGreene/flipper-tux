@@ -16,9 +16,14 @@ require('dotenv').config();
 const app = express();
 // Read port from environment variable set by start.sh, default to 3691
 const PORT = process.env.PORT || 3691;
+// Read host from environment variable, default to localhost for security (P3: Default Server to Localhost Binding)
+const HOST = process.env.HOST || '127.0.0.1';
 // Read device identity from .env file, with sensible defaults
 const DEVICE_NAME = process.env.DEVICE_NAME || os.hostname();
 const DEVICE_PIN = process.env.DEVICE_PIN || null;
+
+// P3: Implement --readonly Mode
+const IS_READONLY = process.argv.includes('--readonly');
 
 // --- Audit Logger ---
 const auditLogStream = fs.createWriteStream(path.join(__dirname, 'audit.log'), { flags: 'a' });
@@ -29,7 +34,11 @@ const logAuditEvent = (level, message) => {
     auditLogStream.write(logMessage);
 };
 
-logAuditEvent('info', `Server starting for device '${DEVICE_NAME}' on port ${PORT}...`);
+logAuditEvent('info', `Server starting for device '${DEVICE_NAME}' on ${HOST}:${PORT}...`);
+
+if (IS_READONLY) {
+    logAuditEvent('warn', '--- READ-ONLY MODE ENABLED --- All state-changing API requests and /api/root/* routes will be blocked.');
+}
 
 if (!DEVICE_PIN) {
     const warning = "No DEVICE_PIN found in .env. API is UNPROTECTED. Run installation.sh to set a PIN.";
@@ -40,6 +49,20 @@ if (!DEVICE_PIN) {
 app.use(express.json()); // Middleware to parse JSON bodies
 app.use(express.static(path.join(__dirname, 'public'))); // Serve static files (HTML, CSS, JS)
 app.set('trust proxy', true); // Required to get the real IP address if behind a proxy
+
+// P3: Read-Only Middleware
+const readOnlyMiddleware = (req, res, next) => {
+    if (IS_READONLY) {
+        const isRootApi = req.originalUrl.startsWith('/api/root');
+        const isStateChangingMethod = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method);
+
+        if (isRootApi || isStateChangingMethod) {
+            logAuditEvent('warn', `[READONLY] Denied access for IP ${req.ip} to ${req.method} ${req.originalUrl}. Reason: Read-only mode is enabled.`);
+            return res.status(403).json({ error: 'Forbidden: Server is in read-only mode.' });
+        }
+    }
+    next();
+};
 
 // --- Authentication Middleware ---
 // This checks for the correct PIN on all protected API routes.
@@ -76,9 +99,9 @@ const rootRouter = require('./routes/root');
 const moduleRouter = require('./routes/modules');
 
 // Apply the authentication middleware to all routes that control the device
-app.use('/api/termux', authMiddleware, requestLogger, termuxRouter);
-app.use('/api/root', authMiddleware, requestLogger, rootRouter);
-app.use('/api/modules', authMiddleware, requestLogger, moduleRouter);
+app.use('/api/termux', readOnlyMiddleware, authMiddleware, requestLogger, termuxRouter);
+app.use('/api/root', readOnlyMiddleware, authMiddleware, requestLogger, rootRouter);
+app.use('/api/modules', readOnlyMiddleware, authMiddleware, requestLogger, moduleRouter);
 logAuditEvent('info', 'API routers mounted with authentication and logging.');
 
 
@@ -127,7 +150,7 @@ app.get('/api/test', (req, res) => {
 });
 
 // Protected endpoint to get detailed server and module info for an authenticated UI.
-app.get('/api/server-info', authMiddleware, requestLogger, (req, res) => {
+app.get('/api/server-info', readOnlyMiddleware, authMiddleware, requestLogger, (req, res) => {
     const loadedModules = [];
     if (fs.existsSync(modulesDir)) {
         fs.readdirSync(modulesDir).filter(file => file.endsWith('.js')).forEach(file => {
@@ -163,7 +186,7 @@ app.get('/api/server-info', authMiddleware, requestLogger, (req, res) => {
 
 
 // --- Server Startup ---
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, HOST, () => { // P3: Default Server to Localhost Binding
     logAuditEvent('info', '--- Flipper TUX Server is live! ---');
     logAuditEvent('info', `Device Name: ${DEVICE_NAME}`);
     logAuditEvent('info', `Access the UI from any device on your local network.`);
@@ -177,12 +200,18 @@ app.listen(PORT, '0.0.0.0', () => {
         if (addresses) {
             addresses.forEach(iface => {
                 if (iface.family === 'IPv4' && !iface.internal) {
-                    logAuditEvent('info', `  - ${ifaceName}: http://${iface.address}${displayPort}`);
+                    // Only log if the server is binding to 0.0.0.0 or the specific interface IP
+                    if (HOST === '0.0.0.0' || HOST === iface.address) {
+                        logAuditEvent('info', `  - ${ifaceName}: http://${iface.address}${displayPort}`);
+                    }
                 }
             });
         }
     });
     logAuditEvent('info', `  - Localhost: http://127.0.0.1${displayPort}`);
-    logAuditEvent('info', `  - Custom URL: http://flipper.tux${displayPort}`);
+    // Only log custom URL if binding to 0.0.0.0 or 127.0.0.1 (as flipper.tux resolves to 127.0.0.1)
+    if (HOST === '0.0.0.0' || HOST === '127.0.0.1') {
+        logAuditEvent('info', `  - Custom URL: http://flipper.tux${displayPort}`);
+    }
     logAuditEvent('info', '-------------------------------------');
 });

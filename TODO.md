@@ -8,14 +8,14 @@ This document outlines the development roadmap, bug fixes, and feature enhanceme
 
 These items address security, core functionality, and major user experience gaps.
 
--   [ ] **Implement Server-Side PIN Authentication:**
+-   [x] **Implement Server-Side PIN Authentication:**
     -   The `installation.sh` script now creates a `.env` file with `DEVICE_PIN`.
     -   The server (`server.js`) must load this PIN using `dotenv`.
     -   Create a middleware to protect all `/api/*` routes.
     -   The middleware should check for an `X-Device-PIN` header (as implemented in `main.js`) and validate it against the PIN from `.env`.
     -   Reject requests with a `401 Unauthorized` or `403 Forbidden` error if the PIN is missing or incorrect.
 
--   [ ] **Implement Server-Side Discovery Endpoint:**
+-   [x] **Implement Server-Side Discovery Endpoint:**
     -   The frontend (`main.js`) attempts to discover devices by pinging `/api/discover` on port `3691`.
     -   Create a new, unauthenticated endpoint `GET /api/discover` in `server.js`.
     -   This endpoint should return the `DEVICE_NAME` from the `.env` file. Example: `{ "deviceName": "MyAndroid" }`.
